@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"encoding/xml"
 	"fmt"
+	"github.com/astaxie/beego/logs"
 	"golang.org/x/crypto/pkcs12"
 	"io"
 	"io/ioutil"
@@ -42,6 +43,8 @@ func PostJSON(uri string, obj interface{}) ([]byte, error) {
 	jsonData = bytes.Replace(jsonData, []byte("\\u0026"), []byte("&"), -1)
 
 	body := bytes.NewBuffer(jsonData)
+
+	logs.Debug("post info. uri: %s, body: %s", uri, body)
 	response, err := http.Post(uri, "application/json;charset=utf-8", body)
 	if err != nil {
 		return nil, err

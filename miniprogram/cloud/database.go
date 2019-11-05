@@ -12,6 +12,14 @@ const (
 	databaseImportUrl        = "https://api.weixin.qq.com/tcb/databasemigrateimport?access_token=%s"
 	databaseExportUrl        = "https://api.weixin.qq.com/tcb/databasemigrateexport?access_token=%s"
 	databaseMigrateQueryInfo = "https://api.weixin.qq.com/tcb/databasemigratequeryinfo?access_token=%s"
+	databaseCollectionAdd    = "https://api.weixin.qq.com/tcb/databasecollectionadd?access_token=%s"
+	databaseCollectionDelete = "https://api.weixin.qq.com/tcb/databasecollectiondelete?access_token=%s"
+	databaseCollectionGet    = "https://api.weixin.qq.com/tcb/databasecollectionget?access_token=%s"
+	databaseAdd              = "https://api.weixin.qq.com/tcb/databaseadd?access_token=%s"
+	databaseDelete           = "https://api.weixin.qq.com/tcb/databasedelete?access_token=%s"
+	databaseUpdate           = "https://api.weixin.qq.com/tcb/databaseupdate?access_token=%s"
+	databaseQuery            = "https://api.weixin.qq.com/tcb/databasequery?access_token=%s"
+	databaseCount            = "https://api.weixin.qq.com/tcb/databasecount?access_token=%s"
 )
 
 type FileType int8
@@ -125,4 +133,136 @@ func (cloud *Cloud) DatabaseExport(exportDataParam ExportDataParam) (jobId int64
 		jobId = res.JobId
 	}
 	return
+}
+
+type MigrateQueryInfo struct {
+	util.CommonError
+	Status        string `json:"status"`
+	RecordSuccess int64  `json:"record_success"`
+	RecordFail    int64  `json:"record_fail"`
+	ErrMsg        string `json:"err_msg"`
+	FileUrl       string `json:"file_url"`
+}
+
+/**
+ * 查询导出状态
+ */
+func (cloud *Cloud) DatabaseMigrateQueryInfo(jobId int64) (m *MigrateQueryInfo, err error) {
+	m = &MigrateQueryInfo{}
+
+	if token, e := cloud.GetAccessToken(); e != nil {
+		return m, e
+	} else if resp, e := util.PostJSON(fmt.Sprintf(databaseMigrateQueryInfo, token), struct {
+		Env   string `json:"env"`
+		JobId int64  `json:"job_id"`
+	}{
+		Env:   cloud.Env,
+		JobId: jobId,
+	}); e != nil {
+		logs.Error("query migrate database failed. param: %v, err: %v", jobId, e)
+		err = e
+	} else if e := json.Unmarshal(resp, m); e != nil {
+		logs.Error("query migrate database unmarshal failed. param: %v, res: %v, e: %v", jobId, string(resp), e)
+		err = e
+	} else if fail, _, msg := util.IsError(m.CommonError); fail {
+		logs.Error("query migrate return err. res: %v", m)
+		err = errors.New(msg)
+	}
+	return
+}
+
+/**
+ * 添加集合
+ */
+func (cloud *Cloud) DatabaseCollectionAdd(name string) error {
+	if token, e := cloud.GetAccessToken(); e != nil {
+		return e
+	} else if resp, e := util.PostJSON(fmt.Sprintf(databaseCollectionAdd, token), struct {
+		Env            string `json:"env"`
+		CollectionName string `json:"collection_name"`
+	}{
+		Env:            cloud.Env,
+		CollectionName: name,
+	}); e != nil {
+		logs.Error("collection add failed. param: %v, err: %v", name, e)
+		return e
+	} else if err := util.DecodeWithCommonError(resp, "添加集合"); err != nil {
+		logs.Error("add collection failed. resp: %s", string(resp))
+		return err
+	}
+	return nil
+}
+
+/**
+ * 删除集合
+ */
+func (cloud *Cloud) DatabaseCollectionDelete(name string) error {
+	if token, e := cloud.GetAccessToken(); e != nil {
+		return e
+	} else if resp, e := util.PostJSON(fmt.Sprintf(databaseCollectionDelete, token), struct {
+		Env            string `json:"env"`
+		CollectionName string `json:"collection_name"`
+	}{
+		Env:            cloud.Env,
+		CollectionName: name,
+	}); e != nil {
+		logs.Error("collection delete failed. param: %v, err: %v", name, e)
+		return e
+	} else if err := util.DecodeWithCommonError(resp, "删除集合"); err != nil {
+		logs.Error("delete collection failed. resp: %s", string(resp))
+		return err
+	}
+	return nil
+}
+
+type Pager struct {
+	Offset int64 `json:"Offset"`
+	Limit  int64 `json:"Limit"`
+	Total  int64 `json:"Total"`
+}
+
+type Collection struct {
+	Name       string `json:"name"`
+	Count      int64  `json:"count"`
+	Size       int64  `json:"size"`
+	IndexCount int64  `json:"index_count"`
+	IndexSize  int64  `json:"index_size"`
+}
+
+type CollectionGetResp struct {
+	util.CommonError
+
+	Pager Pager `json:"pager"`
+
+	Collections []Collection `json:"collections"`
+}
+
+/**
+ * 获取特定云环境下集合信息
+ */
+func (cloud *Cloud) DatabaseCollectionGet(limit, offset int64) (*CollectionGetResp, error) {
+	if token, e := cloud.GetAccessToken(); e != nil {
+		return nil, e
+	} else if resp, e := util.PostJSON(fmt.Sprintf(databaseCollectionGet, token), struct {
+		Env    string `json:"env"`
+		Limit  int64  `json:"limit"`
+		Offset int64  `json:"offset"`
+	}{
+		Env:    cloud.Env,
+		Limit:  limit,
+		Offset: offset,
+	}); e != nil {
+		logs.Error("collection get failed. limit: %d, offset: %d, err: %v", limit, offset, e)
+		return nil, e
+	} else {
+		result := &CollectionGetResp{}
+		if err := json.Unmarshal(resp, result); err != nil {
+			logs.Error("unmarshal collection get resp failed. resp: %v", string(resp))
+			return nil, errors.New("获取失败")
+		} else if result.ErrCode != 0 {
+			logs.Error(" collection get resp failed. resp: %v", string(resp))
+		}
+		return result, errors.New(result.ErrMsg)
+	}
+
 }
