@@ -63,7 +63,7 @@ func (material *Material) AddNews(articles []*Article) (mediaID string, err erro
 	uri := fmt.Sprintf("%s?access_token=%s", addNewsURL, accessToken)
 	responseBytes, err := util.PostJSON(uri, req)
 	var res resArticles
-	err = json.Unmarshal(responseBytes, res)
+	err = json.Unmarshal(responseBytes, &res)
 	if err != nil {
 		return
 	}
@@ -138,11 +138,11 @@ func (material *Material) AddVideo(filename, title, introduction string) (mediaI
 	fields := []util.MultipartFormField{
 		{
 			IsFile:    true,
-			Fieldname: "video",
+			Fieldname: "media",
 			Filename:  filename,
 		},
 		{
-			IsFile:    true,
+			IsFile:    false,
 			Fieldname: "description",
 			Value:     fieldValue,
 		},
