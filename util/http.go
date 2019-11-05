@@ -49,7 +49,7 @@ func PostJSON(uri string, obj interface{}) ([]byte, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http get error : uri=%v , statusCode=%v", uri, response.StatusCode)
+		return nil, fmt.Errorf("http post error : uri=%v , statusCode=%v, params=%v", uri, response.StatusCode, string(jsonData))
 	}
 	return ioutil.ReadAll(response.Body)
 }

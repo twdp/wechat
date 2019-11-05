@@ -23,3 +23,20 @@ func DecodeWithCommonError(response []byte, apiName string) (err error) {
 	}
 	return nil
 }
+
+/**
+ * 判断是否出错
+ * result true: 出错, false: 为出错
+ * code 返回的code
+ * msg 返回的错误信息
+ */
+func IsError(commonError CommonError) (result bool, code int64, msg string) {
+	if commonError.ErrCode == 0 {
+		result = false
+	} else {
+		result = true
+		code = commonError.ErrCode
+		msg = commonError.ErrMsg
+	}
+	return result, code, msg
+}
